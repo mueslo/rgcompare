@@ -1,4 +1,3 @@
-
 #import system stuff
 import sys,time,os
 from multiprocessing import Process, Queue, freeze_support, cpu_count
@@ -78,6 +77,27 @@ class RCSettingsDialog(tkSimpleDialog.Dialog):
         second = int(self.e2.get())
         print first, second # or something
 '''
+
+def comparison_worker(self,input, output):
+    devnull = open(os.devnull, 'w')
+    try:
+        with RedirectStdStreams(stdout=devnull, stderr=devnull):
+            for match_id,player_fnames, map_fname, turns in iter(input.get, 'STOP'):
+
+                map_data = ast.literal_eval(open(map_fname).read())
+                game.init_settings(map_data)
+                players = [game.Player(open(x).read()) for x in player_fnames]
+                g = game.Game(*players, record_turns=False)
+
+                t_start = time.time()
+                for i in range(turns):
+                    print (' running turn %d '%(g.turns)).center(70, '-')
+                    g.run_turn()
+                t_end = time.time()
+
+                output.put([g.get_scores(),t_end-t_start])
+    finally:
+        print "Terminating worker..."
 
 class RobotComparison(Tk.Tk):
 
@@ -225,7 +245,7 @@ class RobotComparison(Tk.Tk):
             self.task_queue.put((i,self.player_fnames,map_fname,self.turns))
 
         for i,p in enumerate(self.processes):
-            self.processes[i] = Process(target=self.comparison_worker, args=(self.task_queue,self.done_queue))
+            self.processes[i] = Process(target=comparison_worker, args=(self.task_queue,self.done_queue))
 
 
         self.menubar.entryconfigure('Run',state=Tk.DISABLED)
@@ -269,26 +289,6 @@ class RobotComparison(Tk.Tk):
             print "kbd interrupt"
             self.abort()
 
-    def comparison_worker(self,input, output):
-        devnull = open(os.devnull, 'w')
-        try:
-            with RedirectStdStreams(stdout=devnull, stderr=devnull):
-                for match_id,player_fnames, map_fname, turns in iter(input.get, 'STOP'):
-
-                    map_data = ast.literal_eval(open(map_fname).read())
-                    game.init_settings(map_data)
-                    players = [game.Player(open(x).read()) for x in player_fnames]
-                    g = game.Game(*players, record_turns=False)
-
-                    t_start = time.time()
-                    for i in range(turns):
-                        print (' running turn %d '%(g.turns)).center(70, '-')
-                        g.run_turn()
-                    t_end = time.time()
-
-                    output.put([g.get_scores(),t_end-t_start])
-        finally:
-            print "Terminating worker..."
 
     def update(self):
         r = np.array(self.results)
