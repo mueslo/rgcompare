@@ -19,7 +19,8 @@ Caveats
 ----
 
 I'm not a (professional) programmer, so please excuse my coding style. If there's something you want to change,
-feel free to contribute. There are also numerous bugs currently.
+feel free to contribute. There are also numerous bugs currently, the program is unresponsive when running and
+it will occasinally crash. Don't say I didn't warn you.
 
 Example
 ----
