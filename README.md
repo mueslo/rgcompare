@@ -4,7 +4,9 @@ rgcompare
 rgkit robot comparison tool
 ----
 
-this is a program to compare two rgkit robots (see also robotgame.org)
+This is a program to compare two rgkit robots (see also robotgame.org). It is in some sorts a replacement
+for the default 'run-headless.py', since it is supposed to only test bots against each other, and not be
+used for debugging. Try to use non-functional bots at your own peril!
 
 Requirements
 ----
