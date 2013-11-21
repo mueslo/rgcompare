@@ -78,7 +78,7 @@ class RCSettingsDialog(tkSimpleDialog.Dialog):
         print first, second # or something
 '''
 
-def comparison_worker(self,input, output):
+def comparison_worker(input, output):
     devnull = open(os.devnull, 'w')
     try:
         with RedirectStdStreams(stdout=devnull, stderr=devnull):
