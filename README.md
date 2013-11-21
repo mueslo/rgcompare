@@ -21,6 +21,14 @@ Caveats
 I'm not a (professional) programmer, so please excuse my coding style. If there's something you want to change,
 feel free to contribute. There are also numerous bugs currently.
 
+Example
+----
+
+![](http://i.imgur.com/kiBKUjT.png)
+
+![](http://i.imgur.com/bMXlC7G.png)
+
+
 Usage
 ----
 
