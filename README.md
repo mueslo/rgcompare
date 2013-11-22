@@ -4,8 +4,13 @@ rgcompare
 rgkit robot comparison tool
 ----
 
-This is a program to compare two rgkit robots (see also robotgame.org). It is in some sorts a replacement
-for the default 'run-headless.py', since it is supposed to only test bots against each other, and not be
+This is a program to compare two (soon: many) rgkit robots (see also robotgame.org). 
+
+Features
+----
+It has multiprocessing and live updating of graphs.
+
+It is in some sorts a replacement for rgkit's default 'run-headless.py', since it is supposed to only test bots against each other, and not be
 used for debugging. Try to use non-functional bots at your own peril!
 
 Requirements
@@ -20,9 +25,9 @@ Python 2.7 (plus its standard libraries), matplotlib, numpy,
 Caveats
 ----
 
-I'm not a (professional) programmer, so please excuse my coding style. If there's something you want to change,
-feel free to contribute. There are also numerous bugs currently, the program is unresponsive when running and
-it will occasinally crash. Don't say I didn't warn you.
+I'm not a (professional) programmer, so please excuse my coding style, should it be non-standard or bad. 
+If there's something you want to change, feel free to contribute. There are also numerous bugs currently,
+the program is unresponsive when running and it will occasinally crash. Don't say I didn't warn you.
 
 Example
 ----
