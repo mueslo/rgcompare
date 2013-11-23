@@ -17,7 +17,7 @@ Requirements
 ----
 
 Python 2.7 (plus its standard libraries), matplotlib, numpy,
-[rgkit] [1]
+[rgkit] [1]. Since having two git repositories in the same folder can be derpy, you probably want to clone it somewhere else and just symlink rgcompare.py
 
 [1]: https://github.com/brandonhsiao/rgkit "rgkit"
 
@@ -27,7 +27,7 @@ Caveats
 
 I'm not a (professional) programmer, so please excuse my coding style, should it be non-standard or bad. 
 If there's something you want to change, feel free to contribute. There are also numerous bugs currently,
-the program is unresponsive when running and it will occasinally crash. Don't say I didn't warn you.
+the program is unresponsive when running and it will occasionally crash. Don't say I didn't warn you.
 
 Example
 ----
