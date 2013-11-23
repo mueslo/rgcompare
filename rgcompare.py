@@ -606,7 +606,7 @@ if __name__ == "__main__":
     if args.batch!=0 and len(player_fnames)<2:
         print "Please specify enough robots or use GUI"
         sys.exit()
-    elif args.batch!=0:
+    elif args.batch!=0 or len(player_fnames)>2:
         print "Sorry, batch mode not yet implemented."
         sys.exit()
         
