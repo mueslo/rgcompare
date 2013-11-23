@@ -235,7 +235,7 @@ class RobotComparison(Tk.Tk):
         try:
             if initrun:
                 if self.players.runnable():
-                    self.run(ignore=True)
+                    self.run()
                 else:
                     print "Can't run this configuration of players."
                     if self.show:
@@ -268,7 +268,7 @@ class RobotComparison(Tk.Tk):
                 self.menubar.entryconfigure('Run',state=Tk.DISABLED)
             else:
                 self.menubar.entryconfigure('Run',state=Tk.NORMAL)
-    
+            
             #label stuff due to fnames
             for i,p in enumerate(self.players):
                 self.lines[i].set_label(p)
@@ -352,10 +352,7 @@ class RobotComparison(Tk.Tk):
         self.canvas._tkcanvas.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
 
 
-    def run(self,ignore=False):
-        if not ignore and False:
-            return
-
+    def run(self):
 
         self.target_samples+=self.run_samples
         for i in range(self.run_samples):
@@ -519,7 +516,7 @@ class RobotComparison(Tk.Tk):
 
     def save_plot(self, fname=None):
         if fname is None or not os.path.exists(os.path.dirname(fname)):
-            default_save_fname = "_vs_".join(self.players)+".png"
+            default_save_fname = "_vs_".join(self.players.names())+".png"
             fname = tkFileDialog.asksaveasfilename(filetypes=[("PNG",".png"),\
                 ("JPEG",".jpg"),("SVG",".svg"),("PDF",".pdf")],\
                 defaultextension=".png", initialfile=default_save_fname)
