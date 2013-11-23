@@ -353,7 +353,7 @@ class RobotComparison(Tk.Tk):
 
 
     def run(self,ignore=False):
-        if not ignore and not tkMessageBox.askokcancel("Run?", "This currently blocks user interaction."):
+        if not ignore and False:
             return
 
 
