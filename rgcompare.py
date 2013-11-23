@@ -505,6 +505,7 @@ class RobotComparison(Tk.Tk):
         if tkMessageBox.askokcancel("Quit?", "Are you sure you want to quit?"):
             print "Attempting to quit."
             self.quit()
+            self.destroy() # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
     def abort(self):
         print "ABANDON SHIP!"
@@ -513,6 +514,7 @@ class RobotComparison(Tk.Tk):
                 p.terminate()
         if self.show:
             self.quit()
+            self.destroy() # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
     def save_plot(self, fname=None):
         if fname is None or not os.path.exists(os.path.dirname(fname)):
