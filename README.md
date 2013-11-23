@@ -40,11 +40,10 @@ Example
 Usage
 ----
 
-output is currently always graphical, but nearly everything (except for saving image)
-can be done on the command line:
     
-    usage: rgcompare [-h] [--initrun] [--runs RUNS] [--turns TURNS] [--version]
-                     [--processes PROCESSES] [--batch [output dir]] [--map MAP]
+    usage: rgcompare [-h] [--initrun] [--games GAMES] [--turns TURNS] [--version]
+                     [--processes PROCESSES] [--batch [output dir]] [--no-gui]
+                     [--map MAP]
                      [r [r ...]]
     
     Compare two or more robotgame controller bots in rgkit
@@ -56,12 +55,13 @@ can be done on the command line:
     optional arguments:
       -h, --help            show this help message and exit
       --initrun             attempt to run game as soon as launched
-      --runs RUNS           number of runs to set (default 100)
+      --games GAMES         number of games to run (default 100)
       --turns TURNS         number of turns per run to set (default 100)
       --version             show program's version number and exit
       --processes PROCESSES
                             number of processors to use for calculation (default
                             NUM_PROCESSORS)
-      --batch [output dir]  not yet implemented: don't create gui, and save image
-                            of every battle when finished (default: rgcompare/)
+      --batch [output dir]  not yet implemented: and save image of every battle
+                            when finished (default: rgcompare/)
+      --no-gui              run without graphics (enables initial run)
       --map MAP             map to use (default maps/default.py)
