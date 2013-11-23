@@ -1,7 +1,14 @@
 #import system stuff
 import sys,time,os
-from multiprocessing import Process, Queue, freeze_support, cpu_count
+import multiprocessing,logging
+#import operator 
 
+#imgur stuff
+import tempfile
+from base64 import b64encode
+import json
+import urllib,urllib2
+import webbrowser
 
 #import GUI stuff
 import Tkinter as Tk
@@ -20,6 +27,86 @@ import game
 import ast
 from settings import settings
 
+#whether to produce game logs
+log = True
+
+#current version, increasing this won't make it any better, sadly
+version = "0.2"
+
+#for imgur api
+client_id = 'dc694fab186fc6e'
+
+#functionality that seems to be  missing in os.path:
+# splits "/path/to/file.withext" into ("/path/to/","file",".withext")
+def split(path):
+    path = str(path)
+    split_path = list(os.path.split(path))
+    if split_path[0] not in ["","/"]:
+        split_path[0]+="/"
+    split_ext = os.path.splitext(split_path[1])
+    return split_path[0],split_ext[0],split_ext[1]
+
+
+class PlayerList():
+    
+    def __init__(self,parent,fnames,minsize=2):
+        print "Creating Player List"
+        self.players = []
+        
+        if type(fnames)==str:
+            fnames = [fnames]
+            
+        self.parent = parent
+
+        for f in fnames:
+            self.players.append(self.create_player(f))
+        
+        #if batch mode, filter players
+        if len(self.players)>2:
+            self.players = filter(None, self.players)
+        
+        #no elif since the part immediately above may reduce size
+        if len(self.players)<2:
+            #pad with None
+            self.players += (minsize-len(self.players))*[None]
+
+    def names (self, validOnly=True):
+        return [p.name for p in self.players if p is not None or not validOnly]
+    def fnames(self, validOnly=True):
+        return [p.fname for p in self.players if p is not None or not validOnly]
+        
+    def runnable(self):
+        if None in self.players:
+            return False
+        else:
+            return True
+            
+    def create_player(self, fname):
+        if fname is None or not os.path.isfile(fname):
+            return None
+        else:
+            return Player(fname)
+    
+    def __setitem__(self, i, fname):
+        self.players[i] = self.create_player(fname)
+                
+    def __iter__(self):
+        return iter(self.players)
+    
+    def __getitem__(self, i):
+        return self.players[i]
+            
+    def __str__(self):
+        return ", ".join(str(p) for p in self.players)
+
+class Player():
+    def __init__(self,fname):
+        self.fname = fname
+        self.name = split(fname)[1]
+        self.score = 0
+    def __str__(self):
+        return self.name
+        
 
 class RedirectStdStreams(object):
     def __init__(self, stdout=None, stderr=None):
@@ -41,19 +128,21 @@ class RCReplaceDialog(Tk.Toplevel):
     def __init__(self, parent, fname):
         Tk.Toplevel.__init__(self,parent)
         self.parent = parent
+        self.fname = fname
         self.transient(parent)
 
         Tk.Label(self, text="Which robot would you like to replace with {0}?".format(os.path.basename(fname))).pack()
-        Tk.Button(self, text=str(parent.player_fnames[0]), command=self.p1).pack(side=Tk.LEFT)
-        Tk.Button(self, text=str(parent.player_fnames[1]), command=self.p2).pack(side=Tk.RIGHT)
+        Tk.Button(self, text=str(parent.players[0]), command=self.replace0).pack(side=Tk.LEFT)
+        Tk.Button(self, text=str(parent.players[1]), command=self.replace1).pack(side=Tk.RIGHT)
+
         self.wait_window()
 
-    def p1(self):
-        #todo: better communication between dialog and mainwin
-        self.parent.receive(0)
+    def replace0(self):
+        self.parent.players[0]=self.fname
         self.destroy()
-    def p2(self):
-        self.parent.receive(1)
+        
+    def replace1(self):
+        self.parent.players[1]=self.fname
         self.destroy()
 
 '''
@@ -78,10 +167,13 @@ class RCSettingsDialog(tkSimpleDialog.Dialog):
         print first, second # or something
 '''
 
-def comparison_worker(input, output):
-    devnull = open(os.devnull, 'w')
+#This is the workhorse. It continually checks the work queue for new work
+# and then returns the resulting score and time it took
+def comparison_worker(identity, input, output):
+    logfile = open(__file__+"."+str(identity)+".log", 'w') if log else open(os.devnull, 'w')
+    print "Starting worker {0} (logging to {1})".format(identity,logfile.name)
     try:
-        with RedirectStdStreams(stdout=devnull, stderr=devnull):
+        with RedirectStdStreams(stdout=logfile, stderr=logfile):
             for match_id,player_fnames, map_fname, turns in iter(input.get, 'STOP'):
 
                 map_data = ast.literal_eval(open(map_fname).read())
@@ -89,47 +181,70 @@ def comparison_worker(input, output):
                 players = [game.Player(open(x).read()) for x in player_fnames]
                 g = game.Game(*players, record_turns=False)
 
-                t_start = time.time()
+                t_start = time.clock()
                 for i in range(turns):
                     print (' running turn %d '%(g.turns)).center(70, '-')
                     g.run_turn()
-                t_end = time.time()
+                t_end = time.clock()
 
                 output.put([g.get_scores(),t_end-t_start])
     finally:
-        print "Terminating worker..."
+        print "Terminating worker {0}...".format(identity)
 
+
+#def update_fig_worker(parent):
+    
+
+#This is the graphical comparison tool itself
 class RobotComparison(Tk.Tk):
 
     def __init__(self,parent,map_fname,player_fnames=[None, None],processes=0, samples=100,\
                 turns=0,initrun=False,batch=False, show=True):
-        #Figure.__init__(self)
-        Tk.Tk.__init__(self)
+        self.show = show
+        
+        if self.show:
+            Tk.Tk.__init__(self)
+        
+        #get arguments
         self.parent = parent
 
-        self.processes=[None]*processes if processes>0 else [None]*cpu_count()
+        if processes>multiprocessing.cpu_count():
+            print "Warning: more processes than cores, you will gain little\
+                   performance advantage, and the game timings will be wrong."
+        #bear in mind: self.processes is a list of multiprocessing.Process()es
+        #           while the argument is just an int
+        self.processes=[None]*processes if processes>0 else [None]*multiprocessing.cpu_count()
 
-        self.turns=settings.max_turns if turns==0 else turns
-
-        self.player_fnames = player_fnames
-
-        self.player_fnames += (2-len(self.player_fnames))*[None]
+        self.turns = turns or settings.max_turns
 
         self.map_fname = map_fname
 
-        self.run_samples = samples #num samples per run
+        self.run_samples = samples #num games to compare
+        
+        #do intialization stuff
+        if self.show:
+            self.setup_UI()
+        self.players = PlayerList(self,player_fnames)
 
-        self.setup_UI()
         self.initialize()
 
 
-        if None in player_fnames:
+        if self.show and not self.players.runnable():
             self.menubar.entryconfigure('Run',state=Tk.DISABLED)
 
         try:
             if initrun:
-                self.run(ignore=True)
-            self.mainloop()
+                if self.players.runnable():
+                    self.run(ignore=True)
+                else:
+                    print "Can't run this configuration of players."
+                    if self.show:
+                        tkMessageBox.showwarning(
+                        "Run",
+                        "Can't run this configuration of players.")
+                        
+            if self.show:
+                self.mainloop()
         except KeyboardInterrupt:
             self.abort()
         finally:
@@ -137,9 +252,9 @@ class RobotComparison(Tk.Tk):
                 self.task_queue.put('STOP')
 
     def initialize(self):
-        print "Initialising with players",self.player_fnames
-        self.task_queue = Queue()
-        self.done_queue = Queue()
+        print "Initialising with players",str(self.players)
+        self.task_queue = multiprocessing.Queue()
+        self.done_queue = multiprocessing.Queue()
         self.tasks_finished = 0
         self.target_samples = 0
         self.running = False
@@ -147,22 +262,24 @@ class RobotComparison(Tk.Tk):
         self.runtimes = []
         self.winners = []
 
-
-        if None in player_fnames:
-            self.menubar.entryconfigure('Run',state=Tk.DISABLED)
-        else:
-            self.menubar.entryconfigure('Run',state=Tk.NORMAL)
-
-        #label stuff due to fnames
-        for i,f in enumerate(self.player_fnames):
-            self.lines[i].set_label(os.path.basename(str(f)))
-        self.ax.legend(ncol=2)
-        self.ax2.set_ylabel(os.path.basename(str(self.player_fnames[0])))
-        self.ax2.set_xlabel(os.path.basename(str(self.player_fnames[1])))
-        self.ax.set_title("{0} {1}:{2} {3}".format(os.path.basename(str(self.player_fnames[0])),\
-        self.winners.count(0),self.winners.count(1),os.path.basename(str(self.player_fnames[1]))))
-
-        self.canvas.draw()
+        #UI stuff:
+        if self.show:
+            if not self.players.runnable():
+                self.menubar.entryconfigure('Run',state=Tk.DISABLED)
+            else:
+                self.menubar.entryconfigure('Run',state=Tk.NORMAL)
+    
+            #label stuff due to fnames
+            for i,p in enumerate(self.players):
+                self.lines[i].set_label(p)
+            self.ax.legend(ncol=2)
+            self.ax2.set_ylabel(self.players[0])
+            self.ax2.set_xlabel(self.players[1])
+            self.ax.set_title("{0} {1}:{2} {3}".format(self.players[0],\
+                self.winners.count(0),self.winners.count(1),self.players[1]))
+            
+            self.backgrounds = [self.fig.canvas.copy_from_bbox(self.ax.bbox) for ax in self.fig.axes]
+            self.canvas.draw()
 
 
     def placebo(self):
@@ -179,6 +296,7 @@ class RobotComparison(Tk.Tk):
         self.filemenu = Tk.Menu(self.menubar,tearoff=0)
         self.filemenu.add_command(label="Open robot", command=self.open_robot)
         self.filemenu.add_command(label="Save plot", command=self.save_plot)
+        self.filemenu.add_command(label="Upload to Imgur", command=self.upload_imgur)
         self.menubar.add_cascade(label="File",menu=self.filemenu)
         #self.menubar.add_command(label="Settings", command=self.change_settings)
         self.menubar.add_command(label="Run", command=self.run, state='disabled')
@@ -202,7 +320,7 @@ class RobotComparison(Tk.Tk):
                            #P1  P2  draw
         self.player_colors=["b","r","w"]
         for i,l in enumerate(self.lines):
-            self.lines[i], = self.ax.plot([],[],marker="x",color=self.player_colors[i])
+            self.lines[i], = self.ax.plot([],[],marker="x",color=self.player_colors[i],label=str(i))
             #self.avglines[i], = self.ax.plot([],[],color=self.player_colors[i])
             self.avglines[i] = self.ax.axhspan(0,0)
         self.ax2.plot(range(-1,100),range(-1,100),color="w")
@@ -242,21 +360,22 @@ class RobotComparison(Tk.Tk):
         self.target_samples+=self.run_samples
         for i in range(self.run_samples):
 
-            self.task_queue.put((i,self.player_fnames,map_fname,self.turns))
+            self.task_queue.put((i,[p.fname for p in self.players],map_fname,self.turns))
 
         for i,p in enumerate(self.processes):
-            self.processes[i] = Process(target=comparison_worker, args=(self.task_queue,self.done_queue))
+            if p is None:
+                self.processes[i] = multiprocessing.Process(name="Worker process "+str(i),\
+                    target=comparison_worker, args=(i,self.task_queue,self.done_queue))
 
-
-        self.menubar.entryconfigure('Run',state=Tk.DISABLED)
+        if self.show:
+            self.menubar.entryconfigure('Run',state=Tk.DISABLED)
         self.running = True
 
         print "Launching comparison in",len(self.processes),"threads."
         for p in self.processes:
             if not p.is_alive():
                 p.start()
-            else:
-                print "Thread still alive, no need to start a new one"
+
         #todo: offload this into another thread.
         #      how would you do this in python without pointers?
         try:
@@ -265,25 +384,38 @@ class RobotComparison(Tk.Tk):
                 result,runtime = self.done_queue.get()
 
                 self.tasks_finished += 1
-                print ("Result {0}/{1}".format(self.tasks_finished,\
-                    self.target_samples)+" (took %1.1fs):"%(runtime)).ljust(30),\
-                    os.path.basename(self.player_fnames[0])+" "+str(result[0])+" : "+\
-                    str(result[1])+" "+os.path.basename(self.player_fnames[1])
                 winner = np.argmax(result) if result[0]!=result[1] else -1
 
                 self.winners.append(winner)
                 self.results.append(result)
                 self.runtimes.append(runtime)
 
-                self.ax.axvspan(self.tasks_finished-1.5,self.tasks_finished-0.5,\
-                                color=self.player_colors[winner],alpha=0.3)
+                print ("\r"+" "*100+"\rResult {0}/{1}".format(self.tasks_finished,\
+                    self.target_samples)+" (took %1.1fs):"%(runtime)).ljust(30),\
+                    str(self.players[0])+" "+str(result[0])+" : "+\
+                    str(result[1])+" "+str(self.players[1])
+       
+                
+                print ((u"Results so far: {0} {1}:{2} {3} (time per game: {4:.3}\xb1{5:.2}s)").format(str(self.players[0]),\
+                    self.winners.count(0),self.winners.count(1),str(self.players[1]), np.average(self.runtimes), np.std(self.runtimes))),
+                sys.stdout.flush()
 
-                self.scatgrid[tuple(result)]+=1
-                if self.done_queue.empty():
-                    self.update()
-                    time.sleep(0.05)
+
+                if self.show:
+                    self.ax.axvspan(self.tasks_finished-1.5,self.tasks_finished-0.5,\
+                                    color=self.player_colors[winner],alpha=0.3)
+    
+                    self.scatgrid[tuple(result)]+=1
+
+                    if self.done_queue.empty():
+                        self.update()
+                        time.sleep(0.05)
+                    
             self.running = False
-            self.menubar.entryconfigure('Run',state=Tk.NORMAL)
+            print "\n",
+            
+            if self.show:
+                self.menubar.entryconfigure('Run',state=Tk.NORMAL)
 
         except KeyboardInterrupt:
             print "kbd interrupt"
@@ -294,12 +426,14 @@ class RobotComparison(Tk.Tk):
         r = np.array(self.results)
         maxr = np.max(r)
 
+
         self.ax.set_xlim([-0.5,self.tasks_finished-0.5])
         self.ax.set_ylim([0,maxr])
         self.ax2.set_xlim([-.5,maxr+0.5])
         self.ax2.set_ylim([-.5,maxr+0.5])
-        self.ax.set_title("{0} {1}:{2} {3}".format(os.path.basename(str(self.player_fnames[0])),\
-        self.winners.count(0),self.winners.count(1),os.path.basename(str(self.player_fnames[1]))))
+        
+        self.ax.set_title("{0} {1}:{2} {3}".format(str(self.players[0]),\
+        self.winners.count(0),self.winners.count(1),str(self.players[1])))
         for i,l in enumerate(self.lines):
             self.lines[i].set_xdata(range(len(r)))
             self.lines[i].set_ydata(r[:,i])
@@ -325,41 +459,43 @@ class RobotComparison(Tk.Tk):
                                 norm=self.norm, extend="min", \
                                 ticks=np.arange(1,1+np.max(self.scatgrid)))
         self.scatcb.set_ticklabels(np.arange(1,1+np.max(self.scatgrid)))
-
-
-
+        
         self.canvas.draw()
-
+        #TODO: use blit for faster drawing
+        #for l,ax,bg in zip(self.lines,self.fig.axes,self.backgrounds):
+        #    self.fig.canvas.restore_region(bg)
+        #    ax.draw_artist(l)
+        #    self.fig.canvas.blit(ax.bbox)
+        
     def batch_test(self,fnames):
         #test all bots against each other
         #save plot for each
         pass
 
-    #this is pretty dirty and hacky, but I'm seemingly too dumb to do
-    # communication without pointers.
-    def receive(self,data):
-        print "receiving data:",data
-        self.data = data
-
-
     def open_robot(self):
-        robot_fnames = tkFileDialog.askopenfilenames(filetypes=[("Python source",".py")])
-        print "New robots",robot_fnames
+        new_fnames = tkFileDialog.askopenfilenames(filetypes=[("Python source",".py")])
+        print "New robots",new_fnames
 
-        if len(robot_fnames)==1:
-            print "Replacing single bot..."
+        #Replace a single bot
+        if len(new_fnames)==1:
+            old_player_fnames = self.players.fnames()
+            
+            RCReplaceDialog(self,new_fnames[0])
 
-            RCReplaceDialog(self,robot_fnames[0])
-            self.player_fnames[self.data]=robot_fnames[0]
+            if self.players.fnames() != old_player_fnames:
+                self.initialize()
 
-            self.initialize()
-
-        if len(robot_fnames)==2:
+        #Replace both bots
+        if len(new_fnames)==2:
             print "Replacing both bots..."
-            self.player_fnames = list(robot_fnames)
+            print "players before:",str(self.players)
+            self.players = PlayerList(self, new_fnames)
+            print "players after:",str(self.players)
             self.initialize()
-        elif len(robot_fnames)>2:
-            self.batch_test(robot_fnames)
+        
+        #Batch test multiple bots
+        elif len(new_fnames)>2:
+            self.batch_test(new_fnames)
 
     #def change_settings(self):
     #    settings = RCSettingsDialog(self)
@@ -376,20 +512,61 @@ class RobotComparison(Tk.Tk):
     def abort(self):
         print "ABANDON SHIP!"
         for p in self.processes:
-            if p.is_alive() and p is not None:
+            if p is not None and p.is_alive():
                 p.terminate()
-        self.quit()
-
+        if self.show:
+            self.quit()
 
     def save_plot(self, fname=None):
         if fname is None or not os.path.exists(os.path.dirname(fname)):
-            fname = tkFileDialog.asksaveasfilename(filetypes=[("PNG",".png"),("PDF",".pdf")])
+            default_save_fname = "_vs_".join(self.players)+".png"
+            fname = tkFileDialog.asksaveasfilename(filetypes=[("PNG",".png"),\
+                ("JPEG",".jpg"),("SVG",".svg"),("PDF",".pdf")],\
+                defaultextension=".png", initialfile=default_save_fname)
         self.fig.savefig(fname)
+        
+    def upload_imgur(self):
+        if tkMessageBox.askokcancel("Continue?", "This will open a link in the browser"):
+            with tempfile.TemporaryFile(suffix=".png") as tmpfile: #doesn't work
+    
+                self.fig.savefig(tmpfile, format="png")
+                tmpfile.seek(0)
+                imgenc =  b64encode(tmpfile.read())
+                
+                headers = {"Authorization": "Client-ID {0}".format(client_id)}
+                url = "https://api.imgur.com/3/upload.json"
+                req = urllib2.Request(
+                    url, 
+                    headers = headers,
+                    data = urllib.urlencode({
+                        'key': client_id, 
+                        'image': imgenc,
+                        'type': 'base64',
+                        'title': " vs ".join(self.players.names())
+                        }))
+                        
+                print urllib.urlencode({'key': client_id,'image': b64encode(tmpfile.read()),'type': 'base64','title': " vs ".join(self.players.names())})
+                try:
+                    res = urllib2.urlopen(req)
+                    data = json.loads(res.read())
+            
+                    if data['success']:
+                        print "Opening link:",data['data']['link']
+                        print "Delete Hash:",data['data']['deletehash'],\
+                            "(save this, if you want to delete the image later)"
+                        webbrowser.open(data['data']['link'])
+                    else:
+                        print "There was an error:",data
+                
+                
+                except urllib2.HTTPError as e:
+                    print "HTTP Error",e.code,":", e.reason
 
+        
 
     #parser.add_argument('--batch')
 if __name__ == "__main__":
-    freeze_support()
+    multiprocessing.freeze_support()
     import argparse
 
     parser = argparse.ArgumentParser(prog='rgcompare',\
@@ -398,25 +575,27 @@ if __name__ == "__main__":
         help='robots to fight each other. not yet implemented: if more than two, batch mode will commence ')
     parser.add_argument('--initrun',action='store_true',\
         help='attempt to run game as soon as launched')
-    parser.add_argument('--runs',   action='store',\
-        help='number of runs to set (default 100)',default=100,type=int)
+    parser.add_argument('--games',   action='store',\
+        help='number of games to run (default 100)',default=100,type=int)
     parser.add_argument('--turns',  action='store',default=100,type=int,\
         help='number of turns per run to set (default 100)')
     parser.add_argument('--version',action='version',\
-        version='%(prog)s 0.1')
+        version='%(prog)s {0}'.format(version))
     parser.add_argument('--processes', action='store',\
         help='number of processors to use for calculation \
         (default NUM_PROCESSORS)',default=0,type=int)
     parser.add_argument('--batch', metavar='output dir',nargs="?",\
-        default=0,action='store', help='not yet implemented: don\'t create gui, \
+        default=0,action='store', help='not yet implemented: \
         and save image of every battle when finished (default: rgcompare/)')
+    parser.add_argument('--no-gui', action='store_true',\
+        help='run without graphics (enables initial run)')
     parser.add_argument('--map', action='store', \
         help='map to use (default maps/default.py)', default='maps/default.py')
 
 
     args = parser.parse_args()
 
-    print "Running with args",args
+
 
     player_fnames = []
     if args.robots is not None:
@@ -430,10 +609,14 @@ if __name__ == "__main__":
     elif args.batch!=0:
         print "Sorry, batch mode not yet implemented."
         sys.exit()
+        
+    if not args.initrun and args.no_gui:
+        args.initrun = True
 
     map_fname = os.path.join(os.path.dirname(__file__), args.map)
 
 
-    c = RobotComparison(None,map_fname,player_fnames=args.robots,samples=args.runs,\
+    print "Running with args",args
+    c = RobotComparison(None,map_fname,player_fnames=args.robots,samples=args.games,\
                         turns=args.turns,processes=args.processes,\
-                        initrun=args.initrun, batch=args.batch)
+                        initrun=args.initrun, batch=args.batch, show=not args.no_gui)
