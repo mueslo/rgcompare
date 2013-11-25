@@ -271,7 +271,8 @@ class RobotComparison(Tk.Tk):
             
             #label stuff due to fnames
             for i,p in enumerate(self.players):
-                self.lines[i].set_label(p)
+                self.lines[i].set_label(str(p)) #cast is necessary for some backwards compat
+                
             self.ax.legend(ncol=2)
             self.ax2.set_ylabel(self.players[0])
             self.ax2.set_xlabel(self.players[1])
