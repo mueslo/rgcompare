@@ -36,6 +36,13 @@ version = "0.2"
 #for imgur api
 client_id = 'dc694fab186fc6e'
 
+#windows compatibility stuff
+pm = None
+if sys.stdout.encoding in ["UTF-8","UTF8","UTF-16","UTF16"]:
+    pm = u"\u00b1"
+else:
+    pm = "+-"
+
 #functionality that seems to be  missing in os.path:
 # splits "/path/to/file.withext" into ("/path/to/","file",".withext")
 def split(path):
@@ -394,7 +401,7 @@ class RobotComparison(Tk.Tk):
                     str(result[1])+" "+str(self.players[1])
        
                 
-                print ((u"Results so far: {0} {1}:{2} {3} (time per game: {4:.3}\xb1{5:.2}s)").format(str(self.players[0]),\
+                print (("Results so far: {0} {1}:{2} {3} (time per game: {4:.3}"+pm+"{5:.2}s)").format(str(self.players[0]),\
                     self.winners.count(0),self.winners.count(1),str(self.players[1]), np.average(self.runtimes), np.std(self.runtimes))),
                 sys.stdout.flush()
 
