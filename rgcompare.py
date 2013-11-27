@@ -247,9 +247,7 @@ class RobotComparison(Tk.Tk):
                 self.mainloop()
         except KeyboardInterrupt:
             self.abort()
-        finally:
-            for p in self.processes:
-                self.task_queue.put('STOP')
+
 
     def initialize(self):
         print "Initialising with players",str(self.players)
@@ -332,7 +330,7 @@ class RobotComparison(Tk.Tk):
         self.ax.legend()
         self.ax.set_ylabel("Score")
         self.ax.set_xlabel("Round")
-        self.ax2.set_title("Score heatmap")
+        self.ax2.set_title("Score heatmap\n")
         self.scatgrid = np.zeros((19*19,19*19))
 
         cmap = mpl.cm.get_cmap('jet')
@@ -430,16 +428,17 @@ class RobotComparison(Tk.Tk):
         self.ax2.set_xlim([-.5,maxr+0.5])
         self.ax2.set_ylim([-.5,maxr+0.5])
         
+        avg = np.average(r,axis=0)
+        std = np.std(r,axis=0)
+
         self.ax.set_title("{0} {1}:{2} {3}".format(str(self.players[0]),\
         self.winners.count(0),self.winners.count(1),str(self.players[1])))
         for i,l in enumerate(self.lines):
             self.lines[i].set_xdata(range(len(r)))
             self.lines[i].set_ydata(r[:,i])
 
-            avg = np.average(r[:,i])
-            std = np.std(r[:,i])
             self.avglines[i].remove()
-            self.avglines[i] = self.ax.axhspan(avg-std,avg+std,\
+            self.avglines[i] = self.ax.axhspan(avg[i]-std[i],avg[i]+std[i],\
                                             color=self.player_colors[i],alpha=0.15)
             #self.avglines[i].set_xdata([-.5,self.tasks_finished+.5])
             #self.avglines[i].set_ydata(2*[np.average(r[:,i])])
@@ -457,6 +456,7 @@ class RobotComparison(Tk.Tk):
                                 norm=self.norm, extend="min", \
                                 ticks=np.arange(1,1+np.max(self.scatgrid)))
         self.scatcb.set_ticklabels(np.arange(1,1+np.max(self.scatgrid)))
+        self.ax2.set_title("Score heatmap\nAverage: "+str(int(round(avg[0])))+" : "+str(int(round(avg[1]))))
         
         self.canvas.draw()
         #TODO: use blit for faster drawing
