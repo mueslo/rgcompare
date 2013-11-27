@@ -247,7 +247,9 @@ class RobotComparison(Tk.Tk):
                 self.mainloop()
         except KeyboardInterrupt:
             self.abort()
-
+        finally:
+            for i,p in enumerate(self.processes):
+                self.task_queue.put('STOP')
 
     def initialize(self):
         print "Initialising with players",str(self.players)
