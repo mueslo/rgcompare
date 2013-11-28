@@ -4,8 +4,8 @@ rgcompare
 rgkit robot comparison tool
 ----
 
-This is a program to compare two (soon: many) rgkit robots (see also robotgame.org). 
-Another useful tool: https://github.com/mpeterv/rgsimulator
+This is a program to compare two (soon: many) rgkit robots (see also robotgame.org).  
+Another useful tool: [rgsimulator](https://github.com/mpeterv/rgsimulator)
 
 Features
 ----
