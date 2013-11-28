@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #import system stuff
 import sys,time,os
 import multiprocessing,logging
