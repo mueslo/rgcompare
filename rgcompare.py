@@ -188,7 +188,7 @@ def comparison_worker(identity, input, output):
                 map_data = ast.literal_eval(open(map_fname).read())
                 game.init_settings(map_data)
                 players = [game.Player(open(x).read()) for x in player_fnames]
-                g = game.Game(*players, record_turns=False)
+                g = game.Game(*players)
 
                 t_start = time.clock()
                 for i in range(turns):
