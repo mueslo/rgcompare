@@ -25,9 +25,9 @@ from matplotlib import colors
 import numpy as np
 
 #import RG stuff
-import game
+from rgkit import game,rg
 import ast
-from settings import settings
+from rgkit.settings import settings
 
 #whether to produce game logs
 log = True
@@ -54,6 +54,12 @@ def split(path):
         split_path[0]+="/"
     split_ext = os.path.splitext(split_path[1])
     return split_path[0],split_ext[0],split_ext[1]
+
+K_FACTOR = 32
+
+def new_rating(r1, r2, result):
+    expected = 1/(1 + pow(10, (r2 - r1)/400))
+    return r1 + K_FACTOR * (result - expected)
 
 
 class PlayerList():
@@ -188,7 +194,7 @@ def comparison_worker(identity, input, output):
                 map_data = ast.literal_eval(open(map_fname).read())
                 game.init_settings(map_data)
                 players = [game.Player(open(x).read()) for x in player_fnames]
-                g = game.Game(*players, record_turns=False)
+                g = game.Game(*players)
 
                 t_start = time.clock()
                 for i in range(turns):
@@ -624,8 +630,7 @@ if __name__ == "__main__":
     if not args.initrun and args.no_gui:
         args.initrun = True
 
-    map_fname = os.path.join(os.path.dirname(__file__), args.map)
-
+    map_fname = os.path.join(os.path.dirname(rg.__file__), args.map)
 
     print "Running with args",args
     c = RobotComparison(None,map_fname,player_fnames=args.robots,samples=args.games,\
