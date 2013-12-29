@@ -198,7 +198,7 @@ def comparison_worker(identity, input, output):
 
                 t_start = time.clock()
                 for i in range(turns):
-                    print (' running turn %d '%(g.state.turn)).center(70, '-')
+                    print (' running turn %d '%(g._state.turn)).center(70, '-')
                     g.run_turn()
                 t_end = time.clock()
 
