@@ -103,7 +103,8 @@ class PlayerList():
         else:
             return True
 
-    def create_player(self, fname):
+    @staticmethod
+    def create_player(fname):
         if fname is None or not os.path.isfile(fname):
             return None
         else:
@@ -144,7 +145,7 @@ class RedirectStdStreams(object):
         self.old_stderr.flush()
         sys.stdout, sys.stderr = self._stdout, self._stderr
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self):
         self._stdout.flush()
         self._stderr.flush()
         sys.stdout = self.old_stdout
@@ -198,9 +199,6 @@ def comparison_worker(identity, input, output):
         print "Terminating worker {0}...".format(identity)
 
 
-#def update_fig_worker(parent):
-
-
 #This is the graphical comparison tool itself
 class RobotComparison(Tk.Tk):
     def __init__(self, parent, map_fname, player_fnames=[None, None], processes=0, samples=100, turns=0, initrun=False,
@@ -250,7 +248,7 @@ class RobotComparison(Tk.Tk):
         except KeyboardInterrupt:
             self.abort()
         finally:
-            for i, p in enumerate(self.processes):
+            for _ in self.processes:
                 self.task_queue.put('STOP')
 
     def initialize(self):
@@ -280,8 +278,6 @@ class RobotComparison(Tk.Tk):
             self.ax2.set_xlabel(self.players[1])
             self.ax.set_title("{0} {1}:{2} {3}".format(self.players[0], self.winners.count(0), self.winners.count(1),
                                                        self.players[1]))
-
-            self.backgrounds = [self.fig.canvas.copy_from_bbox(self.ax.bbox) for ax in self.fig.axes]
             self.canvas.draw()
 
     def placebo(self):
@@ -300,7 +296,6 @@ class RobotComparison(Tk.Tk):
         self.filemenu.add_command(label="Save plot", command=self.save_plot)
         self.filemenu.add_command(label="Upload to Imgur", command=self.upload_imgur)
         self.menubar.add_cascade(label="File", menu=self.filemenu)
-        #self.menubar.add_command(label="Settings", command=self.change_settings)
         self.menubar.add_command(label="Run", command=self.run, state='disabled')
         self.menubar.add_command(label="Quit", command=self.close)
         self.config(menu=self.menubar)
@@ -317,18 +312,13 @@ class RobotComparison(Tk.Tk):
         gs.tight_layout(self.fig, rect=[.05, .05, .95, .95])
         self.lines = [None, None]
         self.avglines = [None, None]
-        #self.avglines_lower = [None]*len(player_fnames)
 
         #P1  P2  draw
         self.player_colors = ["b", "r", "w"]
         for i, l in enumerate(self.lines):
             self.lines[i], = self.ax.plot([], [], marker="x", color=self.player_colors[i], label=str(i))
-            #self.avglines[i], = self.ax.plot([],[],color=self.player_colors[i])
             self.avglines[i] = self.ax.axhspan(0, 0)
         self.ax2.plot(range(-1, 100), range(-1, 100), color="w")
-        #self.scat, = self.ax2.plot([],[],ls="",marker="x",color="k")
-
-        #self.resizable(False,False)
 
         self.ax.legend()
         self.ax.set_ylabel("Score")
@@ -437,8 +427,6 @@ class RobotComparison(Tk.Tk):
             self.avglines[i].remove()
             self.avglines[i] = self.ax.axhspan(avg[i] - std[i], avg[i] + std[i], color=self.player_colors[i],
                                                alpha=0.15)
-            #self.avglines[i].set_xdata([-.5,self.tasks_finished+.5])
-            #self.avglines[i].set_ydata(2*[np.average(r[:,i])])
 
         #redraw whole scatter plot every turn (the commented out code below
         # doesn't seem to work)
@@ -490,8 +478,6 @@ class RobotComparison(Tk.Tk):
         elif len(new_fnames) > 2:
             self.batch_test(new_fnames)
 
-    #def change_settings(self):
-    #    settings = RCSettingsDialog(self)
 
     def clear(self):
         #clear all plots to make way for a new comparison
@@ -549,10 +535,6 @@ class RobotComparison(Tk.Tk):
 
                 except urllib2.HTTPError as e:
                     print "HTTP Error", e.code, ":", e.reason
-
-
-
-                    #parser.add_argument('--batch')
 
 
 if __name__ == "__main__":
