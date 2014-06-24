@@ -5,6 +5,7 @@ import sys
 import time
 import os
 import multiprocessing
+import Queue
 
 #imgur stuff
 import tempfile
@@ -361,13 +362,16 @@ class RobotComparison(Tk.Tk):
             if not p.is_alive():
                 p.start()
 
-        #todo: offload this into another thread.
-        #      how would you do this in python without pointers?
+        self.check_done_queue()
+
+    def check_done_queue(self):
         try:
-            while self.tasks_finished < self.target_samples:
-
-                result, runtime = self.done_queue.get()
-
+            if self.tasks_finished < self.target_samples:
+                self.after(50, self.check_done_queue)
+                try:
+                    result, runtime = self.done_queue.get(False)
+                except Queue.Empty as e:
+                    return
                 self.tasks_finished += 1
                 winner = np.argmax(result) if result[0] != result[1] else -1
 
@@ -393,18 +397,16 @@ class RobotComparison(Tk.Tk):
 
                     if self.done_queue.empty():
                         self.update()
-                        time.sleep(0.05)
-
-            self.running = False
-            print "\n",
-
-            if self.show:
-                self.menubar.entryconfigure('Run', state=Tk.NORMAL)
+            else:
+                self.running = False
+                print "\n",
+                if self.show:
+                    self.menubar.entryconfigure('Run', state=Tk.NORMAL)
+                return
 
         except KeyboardInterrupt:
             print "kbd interrupt"
             self.abort()
-
 
     def update(self):
         r = np.array(self.results)
