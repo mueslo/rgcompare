@@ -488,9 +488,8 @@ class RobotComparison(Tk.Tk):
     def close(self):
         if tkMessageBox.askokcancel("Quit?", "Are you sure you want to quit?"):
             print "Attempting to quit."
-            self.quit()
-            self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
-
+            self.abort()
+            
     def abort(self):
         print "ABANDON SHIP!"
         for p in self.processes:
