@@ -178,7 +178,7 @@ class RCReplaceDialog(Tk.Toplevel):
 #This is the workhorse. It continually checks the work queue for new work
 # and then returns the resulting score and time it took
 def comparison_worker(identity, input, output):
-    logfile = open(__file__ + "." + str(identity) + ".log", 'w') if log else open(os.devnull, 'w')
+    logfile = open(os.getcwd() + "/" + "rgcompare" + "." + str(identity) + ".log", 'w') if log else open(os.devnull, 'w')
     print "Starting worker {0} (logging to {1})".format(identity, logfile.name)
     try:
         with RedirectStdStreams(stdout=logfile, stderr=logfile):
@@ -346,7 +346,7 @@ class RobotComparison(Tk.Tk):
     def run(self):
         self.target_samples += self.run_samples
         for i in range(self.run_samples):
-            self.task_queue.put((i, [p.fname for p in self.players], map_fname, self.turns))
+            self.task_queue.put((i, [p.fname for p in self.players], self.map_fname, self.turns))
 
         for i, p in enumerate(self.processes):
             if p is None:
@@ -538,7 +538,7 @@ class RobotComparison(Tk.Tk):
                     print "HTTP Error", e.code, ":", e.reason
 
 
-if __name__ == "__main__":
+def main():
     multiprocessing.freeze_support()
     import argparse
 
@@ -583,3 +583,7 @@ if __name__ == "__main__":
     print "Running with args", args
     c = RobotComparison(None, map_fname, player_fnames=args.robots, samples=args.games, turns=args.turns,
                         processes=args.processes, initrun=args.initrun, batch=args.batch, show=not args.no_gui)
+
+
+if __name__ == "__main__":
+    main()
