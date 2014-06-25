@@ -4,8 +4,9 @@ rgcompare
 rgkit robot comparison tool
 ----
 
-This is a program to compare two (soon: many) rgkit robots (see also robotgame.org).  
+This is a program to compare two (soon: many) [rgkit] [1] robots (see also robotgame.org).  
 Another useful tool: [rgsimulator](https://github.com/mpeterv/rgsimulator)
+
 
 Features
 ----
@@ -20,8 +21,16 @@ Requirements
 Python 2.7 (plus its standard libraries), matplotlib, numpy,
 [rgkit] [1]. Since having two git repositories in the same folder can be derpy, you probably want to clone it somewhere else and just symlink rgcompare.py
 
-[1]: https://github.com/brandonhsiao/rgkit "rgkit"
+[1]: https://github.com/WhiteHalmos/rgkit "rgkit"
 
+
+Installation
+----
+
+A PyPI package is available [here] [2].
+
+
+[2]: https://pypi.python.org/pypi/rgcompare "rgcompare"
 
 Caveats
 ----
